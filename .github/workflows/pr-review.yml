@@ -1,0 +1,38 @@
+# Runs the analyzer on every pull request to this repository and posts (or updates) one comment.
+name: PR risk review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # need the base branch to diff against
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install .
+      - name: Analyse
+        run: |
+          prrisk review --base "origin/${{ github.base_ref }}" --head HEAD \
+            --format md --out report.md --fail-on critical || echo "status=$?" >> "$GITHUB_ENV"
+          prrisk review --base "origin/${{ github.base_ref }}" --head HEAD --format json --out report.json || true
+      - name: Comment on the PR
+        if: github.event.pull_request.head.repo.full_name == github.repository  # no write token on forks
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: prrisk comment --repo "${{ github.repository }}" --pr "${{ github.event.pull_request.number }}" --file report.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prrisk-report
+          path: report.*
+      - name: Block critical-risk PRs
+        run: test "${status:-0}" != "1"

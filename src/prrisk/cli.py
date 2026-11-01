@@ -74,6 +74,18 @@ def _comment(args: argparse.Namespace) -> int:
     return 0
 
 
+def _benchmark(args: argparse.Namespace) -> int:
+    from prrisk.benchmark import run_all
+
+    outcomes, table = run_all()
+    if args.out:
+        Path(args.out).write_text(table + "\n", encoding="utf-8")
+    print(table)
+    missed = [o.name for o in outcomes if o.expect and not o.detected]
+    alarms = [o.name for o in outcomes if o.false_alarm]
+    return 1 if missed or alarms else 0
+
+
 def _serve(args: argparse.Namespace) -> int:  # pragma: no cover - thin uvicorn wrapper
     import uvicorn
 
@@ -114,6 +126,10 @@ def build_parser() -> argparse.ArgumentParser:
     cm.add_argument("--pr", type=int, required=True)
     cm.add_argument("--file", required=True)
     cm.set_defaults(func=_comment)
+
+    bm = sub.add_parser("benchmark", help="run the labelled PR benchmark (fails on regressions)")
+    bm.add_argument("--out")
+    bm.set_defaults(func=_benchmark)
 
     sv = sub.add_parser("serve", help="run the HTTP API")
     sv.add_argument("--host", default="127.0.0.1")

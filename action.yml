@@ -1,0 +1,31 @@
+# Reusable action: `uses: iashutoshparida/pr-risk-analyzer@main` in another repository.
+name: PR Risk Analyzer
+description: Flags risky changes in a pull request and posts a prioritised review comment.
+inputs:
+  fail-on:
+    description: low | medium | high | critical (empty = never fail)
+    default: critical
+  comment:
+    description: post the report as a PR comment
+    default: "true"
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - shell: bash
+      run: pip install "${{ github.action_path }}"
+    - shell: bash
+      run: |
+        set +e
+        prrisk review --base "origin/${{ github.base_ref }}" --head HEAD --format md \
+          --out prrisk-report.md ${{ inputs.fail-on && format('--fail-on {0}', inputs.fail-on) || '' }}
+        code=$?
+        if [ "${{ inputs.comment }}" = "true" ]; then
+          prrisk comment --repo "${{ github.repository }}" \
+            --pr "${{ github.event.pull_request.number }}" --file prrisk-report.md
+        fi
+        exit $code
+      env:
+        GITHUB_TOKEN: ${{ github.token }}

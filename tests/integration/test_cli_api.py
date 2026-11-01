@@ -152,3 +152,11 @@ def test_api_github_validation_and_upstream_error(api, monkeypatch):
     )
     r = api.post("/v1/review/github", json={"repo": "o/r", "pr": 7}, headers={"X-API-Key": KEY})
     assert r.status_code == 502 and r.json()["error"] == "SourceError"
+
+
+def test_benchmark_detects_every_risky_pr_without_false_alarms(tmp_path):
+    out = tmp_path / "bench.md"
+    assert cli.main(["benchmark", "--out", str(out)]) == 0
+    text = out.read_text()
+    assert "| Risky PRs where the expected rule fired | 12 / 12 |" in text
+    assert "(false alarms) | 0 / 12 |" in text
