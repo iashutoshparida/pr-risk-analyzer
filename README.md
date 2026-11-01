@@ -40,7 +40,7 @@ repository with real `git` commits. See [docs/EVALUATION.md](docs/EVALUATION.md)
 The scenarios were written by the same person as the rules, so this shows the rules behave as
 designed; it is not an accuracy estimate for arbitrary real PRs.
 
-**Real history**: run on all 19 commits of two real projects (CodePilot, TestLedger), each took
+**Real history**: run on 19 consecutive commit pairs from two real projects (CodePilot, TestLedger); each took
 0.25-0.65 s. It flagged an `eval` call in CodePilot's sample legacy app (a deliberate defect,
 correctly found) and a signature change in CodePilot's test generator that has callers.
 
