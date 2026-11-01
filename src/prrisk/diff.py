@@ -60,8 +60,9 @@ def parse_diff(text: str) -> list[FileChange]:
         line = lines[i]
         header = _GIT_HEADER.match(line)
         if header:
-            current = FileChange(path=header.group(2), old_path=header.group(1),
-                                 status=Status.MODIFIED)
+            current = FileChange(
+                path=header.group(2), old_path=header.group(1), status=Status.MODIFIED
+            )
             files.append(current)
             old_left = new_left = 0
         elif current is not None and old_left == 0 and new_left == 0:
@@ -71,9 +72,9 @@ def parse_diff(text: str) -> list[FileChange]:
                 current.status = Status.DELETED
                 current.path = current.old_path or current.path
             elif line.startswith("rename from "):
-                current.status, current.old_path = Status.RENAMED, line[len("rename from "):]
+                current.status, current.old_path = Status.RENAMED, line[len("rename from ") :]
             elif line.startswith("rename to "):
-                current.path = line[len("rename to "):]
+                current.path = line[len("rename to ") :]
             elif line.startswith("Binary files ") or line.startswith("GIT binary patch"):
                 current.binary = True
             elif line.startswith("--- "):
@@ -86,7 +87,7 @@ def parse_diff(text: str) -> list[FileChange]:
                     current.status = Status.DELETED
                 elif current.status is not Status.DELETED:
                     current.path = new
-            elif (line.startswith(("+", "-", " ")) and not line.startswith(("+++ ", "--- "))):
+            elif line.startswith(("+", "-", " ")) and not line.startswith(("+++ ", "--- ")):
                 raise DiffParseError(f"hunk longer than its header says in {current.path}")
             elif line.startswith("@@"):
                 match = _HUNK.match(line)

@@ -65,7 +65,9 @@ def test_changed_lines_map_to_innermost_function():
 def test_added_deleted_and_signature_changes():
     old = "def keep(a):\n    return a\n\ndef gone():\n    pass\n"
     new = "def keep(a, b):\n    return a + b\n\ndef fresh():\n    pass\n"
-    changes = {c.qualname: c for c in changed_functions("m.py", old, new, {1, 2, 4, 5}, {1, 2, 4, 5})}
+    changes = {
+        c.qualname: c for c in changed_functions("m.py", old, new, {1, 2, 4, 5}, {1, 2, 4, 5})
+    }
     assert changes["keep"].kind is ChangeKind.MODIFIED and changes["keep"].signature_changed
     assert changes["gone"].kind is ChangeKind.DELETED
     assert changes["fresh"].kind is ChangeKind.ADDED and changes["fresh"].complexity_delta == 1
@@ -76,10 +78,12 @@ def test_module_level_changes_touch_no_function():
 
 
 def test_new_and_deleted_files():
-    assert [c.kind for c in changed_functions("m.py", None, "def f():\n    pass\n", {1, 2}, set())] \
-        == [ChangeKind.ADDED]
-    assert [c.kind for c in changed_functions("m.py", "def f():\n    pass\n", None, set(), {1, 2})] \
-        == [ChangeKind.DELETED]
+    assert [
+        c.kind for c in changed_functions("m.py", None, "def f():\n    pass\n", {1, 2}, set())
+    ] == [ChangeKind.ADDED]
+    assert [
+        c.kind for c in changed_functions("m.py", "def f():\n    pass\n", None, set(), {1, 2})
+    ] == [ChangeKind.DELETED]
 
 
 def test_test_functions_are_marked():
@@ -89,8 +93,12 @@ def test_test_functions_are_marked():
 
 @pytest.mark.parametrize(
     ("path", "mod"),
-    [("src/shop/cart.py", "shop.cart"), ("shop/__init__.py", "shop"), ("a.py", "a"),
-     ("README", "README")],
+    [
+        ("src/shop/cart.py", "shop.cart"),
+        ("shop/__init__.py", "shop"),
+        ("a.py", "a"),
+        ("README", "README"),
+    ],
 )
 def test_module_name(path, mod):
     assert module_name(path) == mod
@@ -105,9 +113,16 @@ def test_repo_index_dependents_callers_and_tests():
         "broken.py": "def (:\n",
     }
     index = RepoIndex.build(files)
-    assert index.dependents_of_module("shop/cart.py") == {"shop.api", "shop.report", "tests.test_cart"}
+    assert index.dependents_of_module("shop/cart.py") == {
+        "shop.api",
+        "shop.report",
+        "tests.test_cart",
+    }
     assert index.call_sites("total", exclude="shop/cart.py") == {
-        "shop/api.py", "shop/report.py", "tests/test_cart.py"}
+        "shop/api.py",
+        "shop/report.py",
+        "tests/test_cart.py",
+    }
     assert index.tests_mentioning("total") == {"tests/test_cart.py"}
     assert index.tests_mentioning("nothing") == set()
     assert index.unparsable == ["broken.py"]

@@ -70,14 +70,19 @@ def change(path, added, status=Status.MODIFIED):
 
 
 def test_secret_detection_and_placeholders():
-    found = text_findings(change(".env.prod", [
-        "AWS_KEY=AKIAABCDEFGHIJKLMNOP",
-        'password = "hunter2hunter2"',
-        'password = "changeme-please"',
-        "-----BEGIN RSA PRIVATE KEY-----",
-        "token: ghp_" + "a" * 36,
-        "# TODO remove this",
-    ]))
+    found = text_findings(
+        change(
+            ".env.prod",
+            [
+                "AWS_KEY=AKIAABCDEFGHIJKLMNOP",
+                'password = "hunter2hunter2"',
+                'password = "changeme-please"',
+                "-----BEGIN RSA PRIVATE KEY-----",
+                "token: ghp_" + "a" * 36,
+                "# TODO remove this",
+            ],
+        )
+    )
     by_line = {f.line: (f.rule, f.severity) for f in found}
     assert by_line[1] == ("SEC010", Severity.CRITICAL)
     assert by_line[2] == ("SEC010", Severity.HIGH)
@@ -120,8 +125,9 @@ def test_complexity_jump_and_long_function():
 
 def test_deleted_tests_are_flagged():
     old = REPO["tests/test_pricing.py"]
-    fcs = changed_functions("tests/test_pricing.py", old, "from shop.pricing import price\n",
-                            set(), {3, 4})
+    fcs = changed_functions(
+        "tests/test_pricing.py", old, "from shop.pricing import price\n", set(), {3, 4}
+    )
     deleted_file = {"tests/test_old.py": change("tests/test_old.py", [], Status.DELETED)}
     found = change_findings(fcs, RepoIndex(), deleted_file)
     assert sorted(f.rule for f in found) == ["TST001", "TST001"]

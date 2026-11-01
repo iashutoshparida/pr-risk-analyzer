@@ -42,8 +42,9 @@ class LocalGitSource:
         )
 
     def diff(self, base: str, head: str) -> str:
-        proc = self._git("diff", "-M", "--no-color", "--no-ext-diff",
-                         f"{_check_ref(base)}...{_check_ref(head)}")
+        proc = self._git(
+            "diff", "-M", "--no-color", "--no-ext-diff", f"{_check_ref(base)}...{_check_ref(head)}"
+        )
         if proc.returncode != 0:
             raise SourceError(proc.stderr.decode(errors="replace").strip() or "git diff failed")
         return proc.stdout.decode("utf-8", errors="replace")

@@ -18,12 +18,21 @@ from prrisk.rules import Finding, Severity, TestSuggestion
 # A file is never rated below its worst finding: one SQL injection is "high" however small the
 # diff. Points above the floor still order files of the same level.
 SEVERITY_FLOOR = {Severity.CRITICAL: 70, Severity.HIGH: 45, Severity.MEDIUM: 20}
-SEVERITY_POINTS = {Severity.CRITICAL: 40, Severity.HIGH: 25, Severity.MEDIUM: 10,
-                   Severity.LOW: 4, Severity.INFO: 1}
-_SENSITIVE = re.compile(r"(?i)(auth|login|password|secret|token|crypto|payment|billing|"
-                        r"permission|acl|security|migrations?/)")
-_INFRA = re.compile(r"(?i)(^|/)(\.github/workflows/|dockerfile|docker-compose|requirements[^/]*"
-                    r"\.txt$|pyproject\.toml$|setup\.py$|package\.json$|.*\.tf$)")
+SEVERITY_POINTS = {
+    Severity.CRITICAL: 40,
+    Severity.HIGH: 25,
+    Severity.MEDIUM: 10,
+    Severity.LOW: 4,
+    Severity.INFO: 1,
+}
+_SENSITIVE = re.compile(
+    r"(?i)(auth|login|password|secret|token|crypto|payment|billing|"
+    r"permission|acl|security|migrations?/)"
+)
+_INFRA = re.compile(
+    r"(?i)(^|/)(\.github/workflows/|dockerfile|docker-compose|requirements[^/]*"
+    r"\.txt$|pyproject\.toml$|setup\.py$|package\.json$|.*\.tf$)"
+)
 
 
 @dataclass
@@ -77,8 +86,7 @@ def score_file(
         add(5, "file deleted")
     score = min(100, round(points))
     worst_found = max((f.severity for f in findings), default=None)
-    floor = SEVERITY_FLOOR.get(worst_found, 0) if worst_found is not None else 0
-    if floor > score:
-        factors.append(f"raised to {floor}: worst finding is {worst_found.name.lower()}")
-        score = floor
+    if worst_found is not None and SEVERITY_FLOOR.get(worst_found, 0) > score:
+        score = SEVERITY_FLOOR[worst_found]
+        factors.append(f"raised to {score}: worst finding is {worst_found.name.lower()}")
     return FileRisk(change.path, score, level_for(score), factors)

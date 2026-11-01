@@ -13,8 +13,15 @@ from prrisk.llm import (
 )
 from prrisk.rules import Finding, Severity
 
-FILES = [FileChange("app/x.py", "app/x.py", Status.MODIFIED,
-                    added={10: "total = price * qty", 11: "return total"}, removed={10: "old"})]
+FILES = [
+    FileChange(
+        "app/x.py",
+        "app/x.py",
+        Status.MODIFIED,
+        added={10: "total = price * qty", 11: "return total"},
+        removed={10: "old"},
+    )
+]
 
 
 class Fake:
@@ -31,14 +38,21 @@ class Fake:
 
 
 def test_grounded_comments_kept_hallucinated_ones_dropped():
-    reply = "Sure! Here you go:\n" + json.dumps([
-        {"path": "app/x.py", "line": 10, "severity": "medium", "message": "qty can be negative"},
-        {"path": "app/x.py", "line": 99, "severity": "high", "message": "line not in diff"},
-        {"path": "app/other.py", "line": 10, "severity": "low", "message": "file not in PR"},
-        {"path": "app/x.py", "line": 11, "severity": "catastrophic", "message": "bad severity"},
-        {"path": "app/x.py", "line": "eleven", "severity": "low", "message": "bad line"},
-        {"line": 11},
-    ])
+    reply = "Sure! Here you go:\n" + json.dumps(
+        [
+            {
+                "path": "app/x.py",
+                "line": 10,
+                "severity": "medium",
+                "message": "qty can be negative",
+            },
+            {"path": "app/x.py", "line": 99, "severity": "high", "message": "line not in diff"},
+            {"path": "app/other.py", "line": 10, "severity": "low", "message": "file not in PR"},
+            {"path": "app/x.py", "line": 11, "severity": "catastrophic", "message": "bad severity"},
+            {"path": "app/x.py", "line": "eleven", "severity": "low", "message": "bad line"},
+            {"line": 11},
+        ]
+    )
     result = review(Fake(reply), FILES, [])
     assert [(c.line, c.message) for c in result.comments] == [(10, "qty can be negative")]
     assert result.rejected == 5 and "5 LLM comment(s) dropped" in result.note

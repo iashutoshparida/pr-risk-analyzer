@@ -10,8 +10,9 @@ from prrisk.errors import DiffParseError
 
 
 def git(repo, *args):
-    return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True,
-                          text=True).stdout
+    return subprocess.run(
+        ["git", "-C", str(repo), *args], check=True, capture_output=True, text=True
+    ).stdout
 
 
 @pytest.fixture
@@ -87,8 +88,9 @@ lines = st.lists(st.sampled_from(["a", "b", "c", "d", "e", "x = 1", ""]), max_si
 def test_parsed_lines_reconstruct_both_versions(old, new):
     body = "".join(
         line if line.endswith("\n") else line + "\n"
-        for line in difflib.unified_diff([o + "\n" for o in old], [n + "\n" for n in new],
-                                         "a/f.py", "b/f.py", n=3)
+        for line in difflib.unified_diff(
+            [o + "\n" for o in old], [n + "\n" for n in new], "a/f.py", "b/f.py", n=3
+        )
     )
     if not body:
         return

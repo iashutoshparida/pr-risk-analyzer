@@ -9,8 +9,9 @@ from prrisk.source import LocalGitSource
 
 
 def git(repo, *args):
-    return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True,
-                          text=True).stdout
+    return subprocess.run(
+        ["git", "-C", str(repo), *args], check=True, capture_output=True, text=True
+    ).stdout
 
 
 BASE = {
@@ -24,11 +25,7 @@ BASE = {
         "    return name.title()\n"
     ),
     "shop/api.py": (
-        "from shop.pricing import price\n"
-        "\n"
-        "\n"
-        "def handler(q):\n"
-        "    return price(q, 2)\n"
+        "from shop.pricing import price\n" "\n" "\n" "def handler(q):\n" "    return price(q, 2)\n"
     ),
     "shop/db.py": "def find(cur, uid):\n    return cur.execute('SELECT * FROM u WHERE id = ?', (uid,))\n",
     "tests/test_pricing.py": (
@@ -71,15 +68,19 @@ def commit_pr(repo, files):
 
 
 def test_risky_pr_is_ranked_and_explained(repo):
-    report = commit_pr(repo, {
-        "shop/pricing.py": BASE["shop/pricing.py"].replace(
-            "def price(qty, rate):", "def price(qty, rate, tax):"),
-        "shop/db.py": (
-            "def find(cur, uid):\n"
-            "    return cur.execute(f'SELECT * FROM u WHERE id = {uid}')\n"
-        ),
-        "README.md": "# shop\nsome docs\n",
-    })
+    report = commit_pr(
+        repo,
+        {
+            "shop/pricing.py": BASE["shop/pricing.py"].replace(
+                "def price(qty, rate):", "def price(qty, rate, tax):"
+            ),
+            "shop/db.py": (
+                "def find(cur, uid):\n"
+                "    return cur.execute(f'SELECT * FROM u WHERE id = {uid}')\n"
+            ),
+            "README.md": "# shop\nsome docs\n",
+        },
+    )
     s = report.summary
     assert s.files_changed == 3 and s.risk_level in ("high", "critical")
     assert report.files[-1].path == "README.md" and report.files[-1].level == "low"
@@ -95,30 +96,41 @@ def test_risky_pr_is_ranked_and_explained(repo):
 
 
 def test_safe_pr_with_tests_is_low_risk(repo):
-    report = commit_pr(repo, {
-        "shop/pricing.py": BASE["shop/pricing.py"].replace("name.title()", "name.strip().title()"),
-        "tests/test_pricing.py": BASE["tests/test_pricing.py"]
-        + "\n\ndef test_label():\n    from shop.pricing import label\n    assert label(' a ') == 'A'\n",
-    })
+    report = commit_pr(
+        repo,
+        {
+            "shop/pricing.py": BASE["shop/pricing.py"].replace(
+                "name.title()", "name.strip().title()"
+            ),
+            "tests/test_pricing.py": BASE["tests/test_pricing.py"]
+            + "\n\ndef test_label():\n    from shop.pricing import label\n    assert label(' a ') == 'A'\n",
+        },
+    )
     assert report.findings == []
     assert report.missing_tests == []
     assert report.summary.risk_level == "low"
 
 
 def test_deleting_a_called_function_is_critical(repo):
-    report = commit_pr(repo, {
-        "shop/pricing.py": "def label(name):\n    return name.title()\n",
-    })
+    report = commit_pr(
+        repo,
+        {
+            "shop/pricing.py": "def label(name):\n    return name.title()\n",
+        },
+    )
     [finding] = [f for f in report.findings if f.rule == "CMP002"]
     assert finding.severity == "critical" and "price" in finding.message
     assert report.summary.risk_level in ("high", "critical")
 
 
 def test_deleted_test_file_and_new_secret(repo):
-    report = commit_pr(repo, {
-        "tests/test_pricing.py": None,
-        "config/settings.py": "API_KEY = 'sk_live_9f8a7b6c5d4e3f2a1b0c'\n",
-    })
+    report = commit_pr(
+        repo,
+        {
+            "tests/test_pricing.py": None,
+            "config/settings.py": "API_KEY = 'sk_live_9f8a7b6c5d4e3f2a1b0c'\n",
+        },
+    )
     rules = {f.rule for f in report.findings}
     assert {"TST001", "SEC010"} <= rules
 

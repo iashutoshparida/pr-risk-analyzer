@@ -38,12 +38,19 @@ LONG_FUNCTION = 60
 
 _SECRET_PATTERNS: list[tuple[str, re.Pattern[str], Severity]] = [
     ("AWS access key", re.compile(r"\bAKIA[0-9A-Z]{16}\b"), Severity.CRITICAL),
-    ("private key", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----"),
-     Severity.CRITICAL),
+    (
+        "private key",
+        re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----"),
+        Severity.CRITICAL,
+    ),
     ("GitHub token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{36,}\b"), Severity.CRITICAL),
-    ("hard-coded credential",
-     re.compile(r"""(?i)\b(password|passwd|secret|api_?key|token)\b\s*[:=]\s*['"][^'"\s]{8,}['"]"""),
-     Severity.HIGH),
+    (
+        "hard-coded credential",
+        re.compile(
+            r"""(?i)\b(password|passwd|secret|api_?key|token)\b\s*[:=]\s*['"][^'"\s]{8,}['"]"""
+        ),
+        Severity.HIGH,
+    ),
 ]
 _PLACEHOLDER = re.compile(r"(?i)(example|changeme|dummy|placeholder|your[_-]|xxx|\*\*\*|<.*>)")
 _TODO = re.compile(r"\b(TODO|FIXME|HACK|XXX)\b")
@@ -73,8 +80,11 @@ def _is_dynamic_string(node: ast.expr) -> bool:
     """f-strings, '...'.format(...), '...' % x and string concatenation with a non-literal."""
     if isinstance(node, ast.JoinedStr):
         return any(isinstance(v, ast.FormattedValue) for v in node.values)
-    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
-            and node.func.attr == "format":
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "format"
+    ):
         return True
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mod | ast.Add):
         return not (isinstance(node.left, ast.Constant) and isinstance(node.right, ast.Constant))
@@ -99,34 +109,83 @@ class _Visitor(ast.NodeVisitor):
             name = _dotted(node.func)
             short = name.rsplit(".", 1)[-1]
             if name in ("eval", "exec"):
-                self._add(node, "SEC001", "security", Severity.HIGH,
-                          f"`{name}()` runs arbitrary code; avoid it on any external input")
-            elif _is_true(_kw(node, "shell")) and name.startswith(("subprocess", "Popen", "run",
-                                                                    "call", "check_")):
-                self._add(node, "SEC002", "security", Severity.HIGH,
-                          f"`{name}(..., shell=True)` allows shell injection; pass an argument list")
+                self._add(
+                    node,
+                    "SEC001",
+                    "security",
+                    Severity.HIGH,
+                    f"`{name}()` runs arbitrary code; avoid it on any external input",
+                )
+            elif _is_true(_kw(node, "shell")) and name.startswith(
+                ("subprocess", "Popen", "run", "call", "check_")
+            ):
+                self._add(
+                    node,
+                    "SEC002",
+                    "security",
+                    Severity.HIGH,
+                    f"`{name}(..., shell=True)` allows shell injection; pass an argument list",
+                )
             elif name in ("os.system", "os.popen"):
-                self._add(node, "SEC002", "security", Severity.MEDIUM,
-                          f"`{name}()` goes through the shell; use subprocess with a list")
+                self._add(
+                    node,
+                    "SEC002",
+                    "security",
+                    Severity.MEDIUM,
+                    f"`{name}()` goes through the shell; use subprocess with a list",
+                )
             elif name in ("pickle.load", "pickle.loads", "marshal.loads", "dill.loads"):
-                self._add(node, "SEC003", "security", Severity.MEDIUM,
-                          f"`{name}()` can execute code when the data is untrusted")
+                self._add(
+                    node,
+                    "SEC003",
+                    "security",
+                    Severity.MEDIUM,
+                    f"`{name}()` can execute code when the data is untrusted",
+                )
             elif name == "yaml.load" and _kw(node, "Loader") is None:
-                self._add(node, "SEC004", "security", Severity.MEDIUM,
-                          "`yaml.load()` without a Loader; use `yaml.safe_load()`")
-            elif short in ("execute", "executemany", "raw") and node.args \
-                    and _is_dynamic_string(node.args[0]):
-                self._add(node, "SEC005", "security", Severity.HIGH,
-                          "SQL built with string formatting; use bound parameters")
+                self._add(
+                    node,
+                    "SEC004",
+                    "security",
+                    Severity.MEDIUM,
+                    "`yaml.load()` without a Loader; use `yaml.safe_load()`",
+                )
+            elif (
+                short in ("execute", "executemany", "raw")
+                and node.args
+                and _is_dynamic_string(node.args[0])
+            ):
+                self._add(
+                    node,
+                    "SEC005",
+                    "security",
+                    Severity.HIGH,
+                    "SQL built with string formatting; use bound parameters",
+                )
             elif _is_false(_kw(node, "verify")):
-                self._add(node, "SEC006", "security", Severity.MEDIUM,
-                          "TLS certificate verification disabled (`verify=False`)")
+                self._add(
+                    node,
+                    "SEC006",
+                    "security",
+                    Severity.MEDIUM,
+                    "TLS certificate verification disabled (`verify=False`)",
+                )
             elif name in ("hashlib.md5", "hashlib.sha1"):
-                self._add(node, "SEC007", "security", Severity.LOW,
-                          f"`{name}` is weak; do not use it for passwords or signatures")
+                self._add(
+                    node,
+                    "SEC007",
+                    "security",
+                    Severity.LOW,
+                    f"`{name}` is weak; do not use it for passwords or signatures",
+                )
             elif name in ("breakpoint", "pdb.set_trace", "ipdb.set_trace"):
-                self._add(node, "MNT003", "maintainability", Severity.MEDIUM,
-                          "debugger call left in the code")
+                self._add(
+                    node,
+                    "MNT003",
+                    "maintainability",
+                    Severity.MEDIUM,
+                    "debugger call left in the code",
+                )
         self.generic_visit(node)
 
     def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
@@ -134,18 +193,33 @@ class _Visitor(ast.NodeVisitor):
             swallowed = all(isinstance(s, ast.Pass) for s in node.body)
             broad = node.type is None or _dotted(node.type) in ("Exception", "BaseException")
             if node.type is None:
-                self._add(node, "MNT001", "maintainability", Severity.MEDIUM,
-                          "bare `except:` also catches KeyboardInterrupt and SystemExit")
+                self._add(
+                    node,
+                    "MNT001",
+                    "maintainability",
+                    Severity.MEDIUM,
+                    "bare `except:` also catches KeyboardInterrupt and SystemExit",
+                )
             elif broad and swallowed:
-                self._add(node, "MNT001", "maintainability", Severity.MEDIUM,
-                          "broad exception silently swallowed; errors will disappear")
+                self._add(
+                    node,
+                    "MNT001",
+                    "maintainability",
+                    Severity.MEDIUM,
+                    "broad exception silently swallowed; errors will disappear",
+                )
         self.generic_visit(node)
 
     def _check_defaults(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         for default in [*node.args.defaults, *node.args.kw_defaults]:
             if isinstance(default, ast.List | ast.Dict | ast.Set) and self._new(default):
-                self._add(default, "MNT002", "maintainability", Severity.LOW,
-                          f"mutable default argument in `{node.name}` is shared between calls")
+                self._add(
+                    default,
+                    "MNT002",
+                    "maintainability",
+                    Severity.LOW,
+                    f"mutable default argument in `{node.name}` is shared between calls",
+                )
         self.generic_visit(node)
 
     visit_FunctionDef = _check_defaults
@@ -156,8 +230,16 @@ def python_findings(path: str, new_src: str, added: set[int]) -> list[Finding]:
     try:
         tree = ast.parse(new_src, filename=path)
     except SyntaxError as exc:
-        return [Finding(path, exc.lineno or 0, "MNT000", "maintainability", Severity.HIGH,
-                        f"file does not parse: {exc.msg}")]
+        return [
+            Finding(
+                path,
+                exc.lineno or 0,
+                "MNT000",
+                "maintainability",
+                Severity.HIGH,
+                f"file does not parse: {exc.msg}",
+            )
+        ]
     visitor = _Visitor(path, added)
     visitor.visit(tree)
     return visitor.out
@@ -170,12 +252,28 @@ def text_findings(change: FileChange) -> list[Finding]:
         for label, pattern, sev in _SECRET_PATTERNS:
             match = pattern.search(text)
             if match and not _PLACEHOLDER.search(match.group(0)):
-                out.append(Finding(change.path, line_no, "SEC010", "security", sev,
-                                   f"possible {label} committed to the repository"))
+                out.append(
+                    Finding(
+                        change.path,
+                        line_no,
+                        "SEC010",
+                        "security",
+                        sev,
+                        f"possible {label} committed to the repository",
+                    )
+                )
                 break
         if _TODO.search(text):
-            out.append(Finding(change.path, line_no, "MNT010", "maintainability", Severity.INFO,
-                               "new TODO/FIXME: track it in an issue"))
+            out.append(
+                Finding(
+                    change.path,
+                    line_no,
+                    "MNT010",
+                    "maintainability",
+                    Severity.INFO,
+                    "new TODO/FIXME: track it in an issue",
+                )
+            )
     return out
 
 
@@ -195,42 +293,82 @@ def change_findings(
             continue
         callers = index.call_sites(fc.name, exclude=fc.path)
         if fc.kind is ChangeKind.DELETED and info.is_test:
-            out.append(Finding(fc.path, _first_line(fc), "TST001", "testing", Severity.MEDIUM,
-                               f"test `{fc.qualname}` deleted", fc.qualname))
+            out.append(
+                Finding(
+                    fc.path,
+                    _first_line(fc),
+                    "TST001",
+                    "testing",
+                    Severity.MEDIUM,
+                    f"test `{fc.qualname}` deleted",
+                    fc.qualname,
+                )
+            )
             continue
         if info.is_test:
             continue
         if fc.kind is ChangeKind.DELETED and info.is_public and callers:
-            out.append(Finding(fc.path, _first_line(fc), "CMP002", "compatibility",
-                               Severity.CRITICAL,
-                               f"`{fc.qualname}` deleted but still called from "
-                               f"{len(callers)} file(s): {', '.join(sorted(callers)[:3])}",
-                               fc.qualname))
+            out.append(
+                Finding(
+                    fc.path,
+                    _first_line(fc),
+                    "CMP002",
+                    "compatibility",
+                    Severity.CRITICAL,
+                    f"`{fc.qualname}` deleted but still called from "
+                    f"{len(callers)} file(s): {', '.join(sorted(callers)[:3])}",
+                    fc.qualname,
+                )
+            )
         if fc.signature_changed and info.is_public and callers:
             assert fc.old is not None and fc.new is not None
-            out.append(Finding(fc.path, _first_line(fc), "CMP001", "compatibility", Severity.HIGH,
-                               f"signature of `{fc.qualname}` changed {fc.old.signature} -> "
-                               f"{fc.new.signature}; {len(callers)} caller file(s) may break",
-                               fc.qualname))
+            out.append(
+                Finding(
+                    fc.path,
+                    _first_line(fc),
+                    "CMP001",
+                    "compatibility",
+                    Severity.HIGH,
+                    f"signature of `{fc.qualname}` changed {fc.old.signature} -> "
+                    f"{fc.new.signature}; {len(callers)} caller file(s) may break",
+                    fc.qualname,
+                )
+            )
         if fc.new is not None:
             jump = fc.complexity_delta if fc.old is not None else 0
-            if jump >= COMPLEXITY_JUMP or (fc.new.complexity > COMPLEXITY_LIMIT and
-                                           fc.complexity_delta > 0):
-                out.append(Finding(fc.path, fc.new.start, "MNT004", "maintainability",
-                                   Severity.MEDIUM,
-                                   f"complexity of `{fc.qualname}` is now {fc.new.complexity} "
-                                   f"({fc.complexity_delta:+d}); consider splitting it",
-                                   fc.qualname))
+            if jump >= COMPLEXITY_JUMP or (
+                fc.new.complexity > COMPLEXITY_LIMIT and fc.complexity_delta > 0
+            ):
+                out.append(
+                    Finding(
+                        fc.path,
+                        fc.new.start,
+                        "MNT004",
+                        "maintainability",
+                        Severity.MEDIUM,
+                        f"complexity of `{fc.qualname}` is now {fc.new.complexity} "
+                        f"({fc.complexity_delta:+d}); consider splitting it",
+                        fc.qualname,
+                    )
+                )
             if fc.new.length > LONG_FUNCTION and (fc.old is None or fc.old.length <= LONG_FUNCTION):
-                out.append(Finding(fc.path, fc.new.start, "MNT005", "maintainability",
-                                   Severity.LOW,
-                                   f"`{fc.qualname}` is {fc.new.length} lines long",
-                                   fc.qualname))
+                out.append(
+                    Finding(
+                        fc.path,
+                        fc.new.start,
+                        "MNT005",
+                        "maintainability",
+                        Severity.LOW,
+                        f"`{fc.qualname}` is {fc.new.length} lines long",
+                        fc.qualname,
+                    )
+                )
     for path, change in files.items():
         name = path.rsplit("/", 1)[-1]
-        if change.status is Status.DELETED and (name.startswith("test_") or "/tests/" in f"/{path}"):
-            out.append(Finding(path, 0, "TST001", "testing", Severity.MEDIUM,
-                               "test file deleted"))
+        if change.status is Status.DELETED and (
+            name.startswith("test_") or "/tests/" in f"/{path}"
+        ):
+            out.append(Finding(path, 0, "TST001", "testing", Severity.MEDIUM, "test file deleted"))
     return out
 
 
@@ -257,8 +395,10 @@ def missing_tests(
         if mentioned & changed_paths:
             continue  # this PR already updates a test that exercises the function
         if mentioned:
-            reason = (f"`{fc.qualname}` changed but none of its tests changed in this PR; "
-                      "add a case for the new behaviour")
+            reason = (
+                f"`{fc.qualname}` changed but none of its tests changed in this PR; "
+                "add a case for the new behaviour"
+            )
         else:
             reason = f"`{fc.qualname}` has no test that references it"
         out.append(TestSuggestion(fc.path, fc.qualname, reason, tuple(sorted(mentioned))))

@@ -12,8 +12,19 @@ import enum
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-_BRANCHES = (ast.If, ast.For, ast.AsyncFor, ast.While, ast.IfExp, ast.ExceptHandler,
-             ast.With, ast.AsyncWith, ast.Assert, ast.comprehension, ast.match_case)
+_BRANCHES = (
+    ast.If,
+    ast.For,
+    ast.AsyncFor,
+    ast.While,
+    ast.IfExp,
+    ast.ExceptHandler,
+    ast.With,
+    ast.AsyncWith,
+    ast.Assert,
+    ast.comprehension,
+    ast.match_case,
+)
 
 
 @dataclass(frozen=True)
@@ -50,8 +61,11 @@ class FunctionChange:
 
     @property
     def signature_changed(self) -> bool:
-        return self.old is not None and self.new is not None and \
-            self.old.signature != self.new.signature
+        return (
+            self.old is not None
+            and self.new is not None
+            and self.old.signature != self.new.signature
+        )
 
     @property
     def complexity_delta(self) -> int:
@@ -132,8 +146,13 @@ def changed_functions(
     changes = []
     for qual in sorted(touched):
         old, new = old_funcs.get(qual), new_funcs.get(qual)
-        kind = ChangeKind.ADDED if old is None else ChangeKind.DELETED if new is None \
+        kind = (
+            ChangeKind.ADDED
+            if old is None
+            else ChangeKind.DELETED
+            if new is None
             else ChangeKind.MODIFIED
+        )
         changes.append(FunctionChange(path, qual, kind, old, new))
     return changes
 
@@ -179,8 +198,13 @@ class RepoIndex:
                             index.test_mentions[alias.name].add(path)
                 elif isinstance(node, ast.Call):
                     func = node.func
-                    name = func.id if isinstance(func, ast.Name) else \
-                        func.attr if isinstance(func, ast.Attribute) else None
+                    name = (
+                        func.id
+                        if isinstance(func, ast.Name)
+                        else func.attr
+                        if isinstance(func, ast.Attribute)
+                        else None
+                    )
                     if name:
                         index.callers[name].add(path)
                         if is_test:
@@ -189,8 +213,12 @@ class RepoIndex:
 
     def dependents_of_module(self, path: str) -> set[str]:
         mod = module_name(path)
-        return {m for key, mods in self.importers.items()
-                if key == mod or key.startswith(mod + ".") for m in mods} - {mod}
+        return {
+            m
+            for key, mods in self.importers.items()
+            if key == mod or key.startswith(mod + ".")
+            for m in mods
+        } - {mod}
 
     def call_sites(self, func_name: str, exclude: str) -> set[str]:
         return self.callers.get(func_name, set()) - {exclude}

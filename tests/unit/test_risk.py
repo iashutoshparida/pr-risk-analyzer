@@ -13,7 +13,15 @@ def finding(sev):
 
 def test_levels():
     assert [level_for(s) for s in (0, 19, 20, 44, 45, 69, 70, 100)] == [
-        "low", "low", "medium", "medium", "high", "high", "critical", "critical"]
+        "low",
+        "low",
+        "medium",
+        "medium",
+        "high",
+        "high",
+        "critical",
+        "critical",
+    ]
 
 
 def test_trivial_change_is_low_and_explained():

@@ -32,8 +32,13 @@ class LLMUnavailableError(Exception):
 class OpenAIProvider:
     name = "openai"
 
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini", timeout_s: float = 30.0,
-                 client: httpx.Client | None = None) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "gpt-4o-mini",
+        timeout_s: float = 30.0,
+        client: httpx.Client | None = None,
+    ) -> None:
         self._key, self._model, self._timeout = api_key, model, timeout_s
         self._client = client or httpx.Client()
 
@@ -42,9 +47,14 @@ class OpenAIProvider:
             r = self._client.post(
                 "https://api.openai.com/v1/chat/completions",
                 headers={"Authorization": f"Bearer {self._key}"},
-                json={"model": self._model, "temperature": 0,
-                      "messages": [{"role": "system", "content": system},
-                                   {"role": "user", "content": prompt}]},
+                json={
+                    "model": self._model,
+                    "temperature": 0,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": prompt},
+                    ],
+                },
                 timeout=self._timeout,
             )
             r.raise_for_status()
@@ -57,8 +67,13 @@ class OpenAIProvider:
 class AnthropicProvider:
     name = "anthropic"
 
-    def __init__(self, api_key: str, model: str = "claude-sonnet-4-5", timeout_s: float = 30.0,
-                 client: httpx.Client | None = None) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "claude-sonnet-4-5",
+        timeout_s: float = 30.0,
+        client: httpx.Client | None = None,
+    ) -> None:
         self._key, self._model, self._timeout = api_key, model, timeout_s
         self._client = client or httpx.Client()
 
@@ -67,8 +82,12 @@ class AnthropicProvider:
             r = self._client.post(
                 "https://api.anthropic.com/v1/messages",
                 headers={"x-api-key": self._key, "anthropic-version": "2023-06-01"},
-                json={"model": self._model, "max_tokens": 1500, "system": system,
-                      "messages": [{"role": "user", "content": prompt}]},
+                json={
+                    "model": self._model,
+                    "max_tokens": 1500,
+                    "system": system,
+                    "messages": [{"role": "user", "content": prompt}],
+                },
                 timeout=self._timeout,
             )
             r.raise_for_status()
@@ -113,8 +132,10 @@ def build_prompt(files: list[FileChange], findings: list[Finding]) -> str:
             parts.append(f"{line_no}: +{change.added[line_no]}")
             budget -= 1
     known = "\n".join(f"- {f.path}:{f.line} {f.rule} {f.message}" for f in findings[:50])
-    return f"Static-analysis findings already reported:\n{known or '- none'}\n\nDiff:\n" + \
-        "\n".join(parts)
+    return (
+        f"Static-analysis findings already reported:\n{known or '- none'}\n\nDiff:\n"
+        + "\n".join(parts)
+    )
 
 
 def _extract_json(text: str) -> object:
@@ -140,17 +161,28 @@ def review(provider: LLMProvider, files: list[FileChange], findings: list[Findin
     accepted, rejected = [], 0
     for item in items:
         try:
-            comment = ReviewComment(str(item["path"]), int(item["line"]),
-                                    str(item["severity"]).lower(), str(item["message"]).strip())
+            comment = ReviewComment(
+                str(item["path"]),
+                int(item["line"]),
+                str(item["severity"]).lower(),
+                str(item["message"]).strip(),
+            )
         except (KeyError, TypeError, ValueError):
             rejected += 1
             continue
         # Grounding check: the model must point at a line this PR actually added.
-        if (comment.path, comment.line) not in added or comment.severity not in _SEVERITIES \
-                or not comment.message or len(comment.message) > 500:
+        if (
+            (comment.path, comment.line) not in added
+            or comment.severity not in _SEVERITIES
+            or not comment.message
+            or len(comment.message) > 500
+        ):
             rejected += 1
             continue
         accepted.append(comment)
-    note = f"{rejected} LLM comment(s) dropped: not on an added line or malformed" \
-        if rejected else None
+    note = (
+        f"{rejected} LLM comment(s) dropped: not on an added line or malformed"
+        if rejected
+        else None
+    )
     return LLMReview(provider.name, accepted, rejected, note)

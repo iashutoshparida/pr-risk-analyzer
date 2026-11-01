@@ -60,8 +60,9 @@ def analyze(
         if new_src is not None:
             findings += python_findings(change.path, new_src, set(change.added))
         try:
-            fchanges += changed_functions(change.path, old_src, new_src,
-                                          set(change.added), set(change.removed))
+            fchanges += changed_functions(
+                change.path, old_src, new_src, set(change.added), set(change.removed)
+            )
         except SyntaxError:
             notes.append(f"{change.path}: could not parse one side; function mapping skipped")
 
@@ -71,7 +72,7 @@ def analyze(
         if len(paths) > MAX_INDEX_FILES:
             notes.append(f"dependency index limited to {MAX_INDEX_FILES} of {len(paths)} files")
             paths = paths[:MAX_INDEX_FILES]
-        texts = {p: t for p in paths if (t := source.read(head, p)) is not None}
+        texts = {p: text for p in paths if (text := source.read(head, p)) is not None}
         # Built from the head tree: a deleted function still called there is a real break.
         index = RepoIndex.build(texts)
     elif source is None:
@@ -101,11 +102,18 @@ def analyze(
             len(dependents),
             max(0, sum(fc.complexity_delta for fc in funcs if fc.new is not None)),
         )
-        file_out.append(FileRiskOut(
-            path=change.path, status=change.status.value, score=risk.score, level=risk.level,
-            churn=change.churn, factors=risk.factors,
-            modified_functions=[fc.qualname for fc in funcs], dependents=dependents[:20],
-        ))
+        file_out.append(
+            FileRiskOut(
+                path=change.path,
+                status=change.status.value,
+                score=risk.score,
+                level=risk.level,
+                churn=change.churn,
+                factors=risk.factors,
+                modified_functions=[fc.qualname for fc in funcs],
+                dependents=dependents[:20],
+            )
+        )
     file_out.sort(key=lambda f: (-f.score, f.path))
 
     comments: list[CommentOut] = []
@@ -125,19 +133,37 @@ def analyze(
     score = min(100, top + extra)
     return Report(
         summary=Summary(
-            risk_score=score, risk_level=level_for(score), files_changed=len(files),
+            risk_score=score,
+            risk_level=level_for(score),
+            files_changed=len(files),
             lines_added=sum(len(f.added) for f in files),
             lines_removed=sum(len(f.removed) for f in files),
-            findings_by_severity=counts, functions_changed=len(fchanges),
+            findings_by_severity=counts,
+            functions_changed=len(fchanges),
             functions_without_tests=len(suggestions),
         ),
         files=file_out,
-        findings=[FindingOut(path=f.path, line=f.line, rule=f.rule, category=f.category,
-                             severity=f.severity.name.lower(), message=f.message,
-                             function=f.function) for f in findings],
-        missing_tests=[TestSuggestionOut(path=t.path, function=t.function, reason=t.reason,
-                                         existing_tests=list(t.existing_tests))
-                       for t in suggestions],
+        findings=[
+            FindingOut(
+                path=f.path,
+                line=f.line,
+                rule=f.rule,
+                category=f.category,
+                severity=f.severity.name.lower(),
+                message=f.message,
+                function=f.function,
+            )
+            for f in findings
+        ],
+        missing_tests=[
+            TestSuggestionOut(
+                path=t.path,
+                function=t.function,
+                reason=t.reason,
+                existing_tests=list(t.existing_tests),
+            )
+            for t in suggestions
+        ],
         llm_comments=comments,
         notes=notes,
     )

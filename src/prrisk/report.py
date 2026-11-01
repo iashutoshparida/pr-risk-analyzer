@@ -89,8 +89,11 @@ class Report(BaseModel):
         if self.missing_tests:
             out += ["", "### Suggested regression tests", ""]
             for t in self.missing_tests[:15]:
-                extra = f" Extend: {', '.join(f'`{p}`' for p in t.existing_tests[:3])}." \
-                    if t.existing_tests else ""
+                extra = (
+                    f" Extend: {', '.join(f'`{p}`' for p in t.existing_tests[:3])}."
+                    if t.existing_tests
+                    else ""
+                )
                 out.append(f"- `{t.path}` {t.reason}.{extra}")
         if self.llm_comments:
             out += ["", "### AI reviewer (checked against the diff)", ""]
