@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prrisk"
+version = "0.1.0"
+description = "Pull-request risk analyzer: flags risky code changes before merge"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Ashutosh Parida" }]
+dependencies = [
+  "fastapi>=0.115,<0.116",
+  "uvicorn>=0.32,<0.33",
+  "pydantic>=2.10,<2.11",
+  "pydantic-settings>=2.6,<2.7",
+  "httpx>=0.28,<0.29",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<8.4",
+  "pytest-cov>=6.0,<6.1",
+  "hypothesis>=6.122,<6.123",
+  "ruff>=0.8,<0.9",
+  "mypy>=1.13,<1.14",
+]
+
+[project.scripts]
+prrisk = "prrisk.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["error", "ignore::DeprecationWarning:starlette.*"]
+
+[tool.coverage.run]
+source = ["prrisk"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["examples/fixtures"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "B", "E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src/prrisk"]
+mypy_path = "src"
+plugins = ["pydantic.mypy"]
